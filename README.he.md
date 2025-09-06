@@ -16,6 +16,7 @@
 - [ארכיטקטורה ותרשימי זרימה](#ארכיטקטורה-ותרשימי-זרימה)
 - [Docker Build (Multi-Stage)](#docker-build-multi-stage)
 - [פתרון בעיות](#פתרון-בעיות)
+- [קרדיט](#קרדיט)
 
 ---
 
@@ -138,3 +139,5 @@ flowchart LR
 - Permissions: ודאו של‑IAM User/Role יש `ec2:Describe*` ו‑`elasticloadbalancing:Describe*`.
 - Port/SG: ודאו פתיחת `5001/TCP` מהרשת ממנה ניגשים.
 
+## קרדיט
+הפרויקט נכתב על ידי תלמיד מכללת JB בשם Alex-Y.

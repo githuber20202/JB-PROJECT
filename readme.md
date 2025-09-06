@@ -16,6 +16,7 @@ A small Flask app that lists AWS resources (EC2, VPCs, Load Balancers, AMIs) usi
 - [Architecture & Diagrams](#architecture--diagrams)
 - [Docker Build (Multi-Stage)](#docker-build-multi-stage)
 - [Troubleshooting](#troubleshooting)
+- [Credits](#credits)
 
 ---
 
@@ -162,3 +163,5 @@ flowchart TB
 - Permissions: make sure your IAM user/role allows `ec2:Describe*` and `elasticloadbalancing:Describe*`.
 - Port/SG: confirm `5001/TCP` is open from your source network.
 
+## Credits
+This project was written by Alex-Y, a JB College student.
