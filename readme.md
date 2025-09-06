@@ -1,112 +1,164 @@
-Section 3: Dockerizing the Application
-    1. Write a Dockerfile with build for image baseline + pip install (add requirements.txt file for the packages required).
-    Bonus: Use Multi-stage
-    The application -
-    Runs a Python-based application (provided here).
-    Uses environment variables for AWS Secret Key (provided separately).
-    Exposes port 5001.
-    2. Push the source code to GitHub, then:
-    SSH into the builder EC2 instance.
-    Clone the repository and build the Docker image.
-    Run the container on the EC2 instance.
-    3. Test the application by accessing it via http://:5001/
-    The page should present the following error in the browser:
+<div align="center">
 
-    NO NEED TO FIX THE ERROR AT THIS STAGE - COMMIT AND PUSH YOUR CODE
+# AWS Resources Viewer (Flask + Docker)
 
-import os
-import boto3
-from flask import Flask, render_template_string
+A small Flask app that lists AWS resources (EC2, VPCs, Load Balancers, AMIs) using boto3. The app listens on port 5001 and reads credentials from environment variables.
 
-app = Flask(__name__)
+</div>
 
-# Fetch AWS credentials from environment variables
-AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-REGION = "us-east-1"
+## Table of Contents
+- [Overview](#overview)
+- [Features](#features)
+- [Project Files](#project-files)
+- [Configuration](#configuration)
+- [Install & Run](#install--run)
+- [EC2 Deployment](#ec2-deployment)
+- [Architecture & Diagrams](#architecture--diagrams)
+- [Docker Build (Multi-Stage)](#docker-build-multi-stage)
+- [Troubleshooting](#troubleshooting)
 
-# Initialize Boto3 clients
-session = boto3.Session(
-   aws_access_key_id=AWS_ACCESS_KEY,
-   aws_secret_access_key=AWS_SECRET_KEY,
-   region_name=REGION
-)
-ec2_client = session.client("ec2")
-elb_client = session.client("elbv2")
+---
 
-@app.route("/")
-def home():
-   # Fetch EC2 instances
-   instances = ec2_client.describe_instances()
-   instance_data = []
-   for reservation in instances["Reservations"]:
-       for instance in reservation["Instances"]:
-           instance_data.append({
-               "ID": instance["InstanceId"],
-               "State": instance["State"]["Name"],
-               "Type": instance["InstanceType"],
-               "Public IP": instance.get("PublicIpAddress", "N/A")
-           })
-  
-   # Fetch VPCs
-   vpc_data = [{"VPC ID": vpc["VpcId"], "CIDR": vpc["CidrBlock"]} for vpc in vpcs["Vpcs"]]
-  
-   # Fetch Load Balancers
-   lb_data = [{"LB Name": lb["LoadBalancerName"], "DNS Name": lb["DNSName"]} for lb in lbs["LoadBalancers"]]
-  
-   # Fetch AMIs (only owned by the account)
-   ami_data = [{"AMI ID": ami["ImageId"], "Name": ami.get("Name", "N/A")} for ami in amis["Images"]]
-  
-   # Render the result in a simple table
-   html_template = """
-   <html>
-   <head><title>AWS Resources</title></head>
-   <body>
-       <h1>Running EC2 Instances</h1>
-       <table border='1'>
-           <tr><th>ID</th><th>State</th><th>Type</th><th>Public IP</th></tr>
-           {% for instance in instance_data %}
-           <tr><td>{{ instance['ID'] }}</td><td>{{ instance['State'] }}</td><td>{{ instance['Type'] }}</td><td>{{ instance['Public IP'] }}</td></tr>
-           {% endfor %}
-       </table>
-      
-       <h1>VPCs</h1>
-       <table border='1'>
-           <tr><th>VPC ID</th><th>CIDR</th></tr>
-           {% for vpc in vpc_data %}
-           <tr><td>{{ vpc['VPC ID'] }}</td><td>{{ vpc['CIDR'] }}</td></tr>
-           {% endfor %}
-       </table>
-      
-       <h1>Load Balancers</h1>
-       <table border='1'>
-           <tr><th>LB Name</th><th>DNS Name</th></tr>
-           {% for lb in lb_data %}
-           <tr><td>{{ lb['LB Name'] }}</td><td>{{ lb['DNS Name'] }}</td></tr>
-           {% endfor %}
-       </table>
-      
-       <h1>Available AMIs</h1>
-       <table border='1'>
-           <tr><th>AMI ID</th><th>Name</th></tr>
-           {% for ami in ami_data %}
-           <tr><td>{{ ami['AMI ID'] }}</td><td>{{ ami['Name'] }}</td></tr>
-           {% endfor %}
-       </table>
-   </body>
-   </html>
-   """
-  
-   return render_template_string(html_template, instance_data=instance_data, vpc_data=vpc_data, lb_data=lb_data, ami_data=ami_data)
+## Overview
+The app serves a simple HTML page with four tables: EC2 Instances, VPCs, Load Balancers and account‑owned AMIs. It targets region `us-east-1` and is designed to run as a lightweight Docker container locally or on EC2.
 
-if __name__ == "__main__":
-   app.run(host="0.0.0.0", port=5001, debug=True)
+## Features
+- EC2 Instances: state, type, and public IP.
+- VPCs: ID and CIDR.
+- Load Balancers (ALB/NLB): name and DNS.
+- AMIs owned by the account.
+- Friendly error handling so the page renders even without credentials/permissions.
 
+## Project Files
+- `app.py` — Flask app: boto3 calls and HTML tables.
+- `Dockerfile` — Multi‑stage build: wheels in a builder stage and a slim runtime.
+- `requirements.txt` — Dependencies (Flask, boto3).
+- `image.png` — Example screenshot of the rendered page.
 
-Section 4: Debugging and Fixing a Bug in the Application 
-    1. The Python application has an existing bug that prevents it from:
-    Listing available Load Balancers, VPCs, and AMIs in us-east-1.
-    2. Fix the bug and validate that the information is displayed correctly in the browser as followed:
-    image.png is in root of the repository
+## Configuration
+- Environment variables:
+  - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
+  - Default region: `us-east-1` (hard‑coded in `app.py`).
+- Networking: open `5001/TCP` locally or in your Security Group when deployed.
 
-Build the new docker image , push your code.
+## Install & Run
+
+Build:
+
+```bash
+docker build -t aws-app .
+```
+
+Run (with explicit credentials):
+
+```bash
+docker run -p 5001:5001 \
+  -e AWS_ACCESS_KEY_ID=YOUR_KEY \
+  -e AWS_SECRET_ACCESS_KEY=YOUR_SECRET \
+  aws-app
+```
+
+Note: On Windows PowerShell use `$Env:VAR` to pass environment variables (for example `$Env:AWS_ACCESS_KEY_ID`).
+
+Verify: open `http://localhost:5001/` or `http://<EC2_PUBLIC_IP>:5001/`.
+
+## EC2 Deployment
+1. SSH: `ssh ec2-user@<EC2_PUBLIC_IP>`.
+2. Clone: `git clone <REPO_URL> && cd <REPO_FOLDER>`.
+3. From the project directory, run the same commands from [Install & Run](#install--run) (Build then Run).
+4. Ensure port `5001/TCP` is allowed in the Security Group.
+
+## Architecture & Diagrams
+
+Request → Render AWS data (sequence):
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant B as Browser
+    participant F as Flask App
+    participant B3 as boto3
+    participant AWS as AWS APIs
+
+    U->>B: Open http://host:5001/
+    B->>F: HTTP GET /
+    F->>B3: describe_instances / describe_vpcs / describe_load_balancers / describe_images
+    B3->>AWS: Signed requests (us-east-1)
+    AWS-->>B3: JSON responses
+    B3-->>F: Dicts
+    F-->>B: HTML tables
+    B-->>U: Rendered page
+```
+
+Build & Deploy pipeline (GitHub → EC2 → Docker):
+
+```mermaid
+flowchart LR
+    Dev[git push] --> EC2[SSH to EC2]
+    EC2 --> Clone[git clone]
+    Clone --> Build[docker build -t aws-app .]
+    Build --> Run[docker run -p 5001:5001 -e AWS_* aws-app]
+    Run --> Browser[Open http://<EC2_IP>:5001/]
+    SG[Security Group allows TCP 5001] --- Browser
+```
+
+## Docker Build (Multi-Stage)
+
+The image is built in three stages to keep the runtime small, fast, and cache‑friendly:
+
+- base: minimal build environment
+  - `FROM python:<VERSION>-slim`
+  - `ENV` (sane Python defaults)
+  - `WORKDIR /app`
+  - `apt-get install build-essential` (in case transitive deps need compilation)
+
+- builder: build dependency wheels
+  - `COPY requirements.txt .`
+  - `pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt`
+
+- runtime: lean runtime only
+  - `FROM python:<VERSION>-slim`
+  - `ENV` + `WORKDIR /app`
+  - `COPY --from=builder /wheels /wheels`
+  - `pip install --no-cache-dir /wheels/*`
+  - `COPY app.py ./`
+  - `EXPOSE 5001`
+  - `CMD ["python", "app.py"]`
+
+Key benefits:
+- Smaller image: no build tools in the runtime layer.
+- Faster, reproducible installs: install from local wheels instead of the network.
+- Better caching: changing app code doesn’t invalidate dependency layers.
+
+Tip: To change the Python version at build time use `--build-arg PYTHON_VERSION=3.12`.
+
+Mermaid diagram of the build stages:
+
+```mermaid
+flowchart TB
+  subgraph base
+    a1[python:slim] --> a2[ENV]
+    a2 --> a3[WORKDIR /app]
+    a3 --> a4[apt-get build-essential]
+  end
+  subgraph builder
+    b1[COPY requirements.txt] --> b2[pip wheel -> /wheels]
+  end
+  subgraph runtime
+    c1[python:slim] --> c2[ENV]
+    c2 --> c3[WORKDIR /app]
+    c3 --> c4[COPY --from=builder /wheels]
+    c4 --> c5[pip install /wheels/*]
+    c5 --> c6[COPY app.py]
+    c6 --> c7[EXPOSE 5001]
+    c7 --> c8[CMD python app.py]
+  end
+  base --> builder --> runtime
+```
+
+## Troubleshooting
+- Credentials: pass `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` to the container as environment variables.
+- Region: default is `us-east-1`. To change it, update `REGION` in `app.py`.
+- Permissions: make sure your IAM user/role allows `ec2:Describe*` and `elasticloadbalancing:Describe*`.
+- Port/SG: confirm `5001/TCP` is open from your source network.
+
