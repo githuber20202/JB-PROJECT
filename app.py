@@ -79,6 +79,14 @@ def home():
 
     אם אין קרדנציאלס — מוצגים נתוני דמו כדי לאפשר הרצה ללא הכנה מיוחדת.
     """
+    # מצב תרגיל: שחזור שגיאת NameError כפי בדרישה (באופן מבוקר)
+    # הפעלה עם: SHOW_BUG=1
+    show_bug = os.getenv("SHOW_BUG", "").lower() in ("1", "true", "yes", "on")
+    if show_bug:
+        # שחזור השורה הבעייתית המקורית ליצירת NameError: 'vpcs' לא מוגדר
+        # הערה: הקוד למטה נועד רק לייצר את השגיאה עבור התרגיל
+        vpc_data = [{"VPC ID": vpc["VpcId"], "CIDR": vpc["CidrBlock"]} for vpc in vpcs["Vpcs"]]  # noqa: F821
+        return str(vpc_data)  # לא יגיע לכאן — NameError ייזרק קודם
     session = _boto3_session()
     demo_mode = not _has_credentials(session)
 
@@ -160,7 +168,7 @@ def home():
             Note: running in demo mode (no AWS credentials detected). Showing sample data.
         </div>
         {% endif %}
-        <h1>Running EC2 Instances</h1>
+        <h1>Running EC2 Instances - JB Student | Alex-Y</h1>
         <table border='1'>
             <tr><th>ID</th><th>State</th><th>Type</th><th>Public IP</th></tr>
             {% for instance in instance_data %}

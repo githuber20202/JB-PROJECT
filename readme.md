@@ -38,9 +38,14 @@ The app serves a simple HTML page with four tables: EC2 Instances, VPCs, Load Ba
 
 ## Configuration
 - Environment variables:
-  - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
-  - Default region: `us-east-1` (hard‑coded in `app.py`).
+  - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` — optional. If no credentials (ENV/Role) are available, the app runs in Demo Mode and shows sample data.
+  - `AWS_DEFAULT_REGION` — working region. Defaults to `us-east-1`.
 - Networking: open `5001/TCP` locally or in your Security Group when deployed.
+
+## Run Modes
+- Demo Mode: when no credentials are detected, the app shows sample data and a small banner. Great for “runs out‑of‑the‑box”.
+- Real Mode: with an EC2 IAM Role or AWS env vars, the app lists real resources.
+- Bug Mode (for the exercise): set `SHOW_BUG=1` to intentionally trigger the NameError shown in the assignment screenshot.
 
 ## Install & Run
 
@@ -50,18 +55,35 @@ Build:
 docker build -t aws-app .
 ```
 
-Run (with explicit credentials):
+Run examples:
 
+- Demo Mode (no credentials):
+```bash
+docker run -p 5001:5001 aws-app
+```
+
+- Real Mode with EC2 IAM Role:
+```bash
+docker run -p 5001:5001 aws-app
+```
+
+- Real Mode with keys (local testing):
 ```bash
 docker run -p 5001:5001 \
   -e AWS_ACCESS_KEY_ID=YOUR_KEY \
   -e AWS_SECRET_ACCESS_KEY=YOUR_SECRET \
+  -e AWS_DEFAULT_REGION=us-east-1 \
   aws-app
 ```
 
-Note: On Windows PowerShell use `$Env:VAR` to pass environment variables (for example `$Env:AWS_ACCESS_KEY_ID`).
+- Bug Mode (reproduce NameError for the exercise):
+```bash
+docker run -p 5001:5001 -e SHOW_BUG=1 aws-app
+```
 
-Verify: open `http://localhost:5001/` or `http://<EC2_PUBLIC_IP>:5001/`.
+Note: On Windows PowerShell use `$Env:VAR` to pass environment variables (e.g. `$Env:AWS_ACCESS_KEY_ID`).
+
+Verify: open `http://localhost:5001/` or `http://<EC2_PUBLIC_IP>:5001/`. In Demo Mode a yellow banner appears at the top.
 
 ## EC2 Deployment
 1. SSH: `ssh ec2-user@<EC2_PUBLIC_IP>`.
@@ -158,10 +180,11 @@ flowchart TB
 ```
 
 ## Troubleshooting
-- Credentials: pass `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` to the container as environment variables.
-- Region: default is `us-east-1`. To change it, update `REGION` in `app.py`.
-- Permissions: make sure your IAM user/role allows `ec2:Describe*` and `elasticloadbalancing:Describe*`.
+- Unable to locate credentials: this build falls back to Demo Mode when no credentials are found. If you still see this text in the tables, rebuild with `--no-cache` and start a fresh container.
+- Region: set `AWS_DEFAULT_REGION` (defaults to `us-east-1`).
+- Permissions (Real Mode): ensure your IAM role/keys allow `ec2:Describe*` and `elasticloadbalancing:Describe*`.
 - Port/SG: confirm `5001/TCP` is open from your source network.
+- Reproduce assignment bug: run with `SHOW_BUG=1` to get the `vpcs` NameError screen.
 
 ## Credits
 This project was written by Alex-Y, a JB College student.

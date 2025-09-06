@@ -37,10 +37,15 @@
 - `image.png` — מסך לדוגמה של העמוד.
 
 ## תצורה
-- משתני סביבה נדרשים:
-  - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
-  - אזור ברירת מחדל: `us-east-1` (מוגדר בקובץ `app.py`).
+- משתני סביבה:
+  - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` — אופציונלי. אם אין קרדנציאלס זמינים (ENV/Role), האפליקציה תעבוד במצב דמו ותציג נתוני דוגמה.
+  - `AWS_DEFAULT_REGION` — אזור עבודה. ברירת מחדל: `us-east-1`.
 - רשת: יש לפתוח `5001/TCP` מקומית או ב‑Security Group בעת פריסה.
+
+## מצבי ריצה
+- Demo Mode: ללא קרדנציאלס — האפליקציה מציגה נתוני דמו ומוסיפה הודעה בראש הדף. מתאים להרצה "מהקופסה" אצל המרצה.
+- Real Mode: עם IAM Role לאינסטנס או עם משתני סביבה של AWS — יוצגו נתונים אמיתיים מ‑AWS.
+- Bug Mode (עבור התרגיל): להפעלת שגיאת NameError מכוונת כפי בדרישה, הריצו עם `SHOW_BUG=1`.
 
 ## התקנה והרצה
 
@@ -50,18 +55,35 @@ Build:
 docker build -t aws-app .
 ```
 
-Run (העברת קרדנציאלס במפורש):
+Run — דוגמאות שימוש:
 
-```bash
-docker run -p 5001:5001 \
-  -e AWS_ACCESS_KEY_ID=YOUR_KEY \
-  -e AWS_SECRET_ACCESS_KEY=YOUR_SECRET \
-  aws-app
-```
+- Demo Mode (ללא קרדנציאלס):
+  ```bash
+  docker run -p 5001:5001 aws-app
+  ```
 
-הערה: ב‑Windows PowerShell משתמשים בתחביר `$Env:VAR` להעברת משתני סביבה (לדוגמה `$Env:AWS_ACCESS_KEY_ID`).
+- Real Mode עם IAM Role על ה‑EC2:
+  ```bash
+  docker run -p 5001:5001 aws-app
+  ```
 
-בדיקה: גלישה אל `http://localhost:5001/` או `http://<EC2_PUBLIC_IP>:5001/`.
+- Real Mode עם מפתחות (לבדיקה מקומית):
+  ```bash
+  docker run -p 5001:5001 \
+    -e AWS_ACCESS_KEY_ID=YOUR_KEY \
+    -e AWS_SECRET_ACCESS_KEY=YOUR_SECRET \
+    -e AWS_DEFAULT_REGION=us-east-1 \
+    aws-app
+  ```
+
+- Bug Mode (שחזור NameError לפי התרגיל):
+  ```bash
+  docker run -p 5001:5001 -e SHOW_BUG=1 aws-app
+  ```
+
+הערה: ב‑Windows PowerShell משתמשים בתחביר `$Env:VAR` להעברת משתני סביבה (למשל `$Env:AWS_ACCESS_KEY_ID`).
+
+בדיקה: גלישה אל `http://localhost:5001/` או `http://<EC2_PUBLIC_IP>:5001/`. במצב דמו תופיע הודעה צהובה בראש הדף.
 
 ## פריסה ל-EC2
 1. התחברות: `ssh ec2-user@<EC2_PUBLIC_IP>`.
@@ -134,10 +156,11 @@ flowchart LR
 טיפ: לשינוי גרסת פייתון בזמן build ניתן להשתמש ב‑`--build-arg PYTHON_VERSION=3.12`.
 
 ## פתרון בעיות
-- Credentials: יש להעביר `AWS_ACCESS_KEY_ID` ו‑`AWS_SECRET_ACCESS_KEY` כ‑ENV לקונטיינר.
-- Region: ברירת המחדל היא `us-east-1`. לשינוי, עדכנו את `REGION` ב‑`app.py`.
-- Permissions: ודאו של‑IAM User/Role יש `ec2:Describe*` ו‑`elasticloadbalancing:Describe*`.
-- Port/SG: ודאו פתיחת `5001/TCP` מהרשת ממנה ניגשים.
+- Unable to locate credentials: בגרסה זו, ללא קרדנציאלס האפליקציה עוברת אוטומטית ל‑Demo Mode. אם עדיין אתם רואים את ההודעה בתוך הטבלאות, בנו את האימג' מחדש עם `--no-cache` והרימו קונטיינר חדש.
+- Region: השתמשו ב‑`AWS_DEFAULT_REGION` (ברירת מחדל `us-east-1`).
+- Permissions: עבור Real Mode ודאו של‑IAM Role/Keys יש `ec2:Describe*` ו‑`elasticloadbalancing:Describe*`.
+- Port/SG: ודאו פתיחת `5001/TCP` מהרשת הרלוונטית.
+- שחזור הבאג לתרגיל: הריצו עם `SHOW_BUG=1` כדי לקבל NameError על `vpcs`.
 
 ## קרדיט
 הפרויקט נכתב על ידי תלמיד מכללת JB בשם Alex-Y.
