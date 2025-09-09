@@ -187,4 +187,5 @@ flowchart TB
 - Reproduce assignment bug: run with `SHOW_BUG=1` to get the `vpcs` NameError screen.
 
 ## Credits
-This project was written by Alex-Y, a JB College student.
+This project was written by Alex-Y,
+JB College student.
