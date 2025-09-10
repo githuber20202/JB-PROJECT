@@ -12,6 +12,7 @@
 - [קבצים עיקריים](#קבצים-עיקריים)
 - [תצורה](#תצורה)
 - [התקנה והרצה](#התקנה-והרצה)
+- [תמונה מוכנה (Docker Hub)](#תמונה-מוכנה-docker-hub)
 - [פריסה ל-EC2](#פריסה-ל-ec2)
 - [ארכיטקטורה ותרשימי זרימה](#ארכיטקטורה-ותרשימי-זרימה)
 - [Docker Build (Multi-Stage)](#docker-build-multi-stage)
@@ -84,6 +85,37 @@ Run — דוגמאות שימוש:
 הערה: ב‑Windows PowerShell משתמשים בתחביר `$Env:VAR` להעברת משתני סביבה (למשל `$Env:AWS_ACCESS_KEY_ID`).
 
 בדיקה: גלישה אל `http://localhost:5001/` או `http://<EC2_PUBLIC_IP>:5001/`. במצב דמו תופיע הודעה צהובה בראש הדף.
+
+## תמונה מוכנה (Docker Hub)
+
+אפשר למשוך ולהריץ אימג' מוכן ישירות מ‑Docker Hub. החליפו את `YOUR_DOCKERHUB_REPO/your-image` בשם הריפו וה‑tag האמיתיים.
+
+Pull לגרסה האחרונה:
+
+```bash
+docker pull YOUR_DOCKERHUB_REPO/your-image:latest
+```
+
+הרצה — דוגמאות שימוש:
+
+- Demo Mode (ללא קרדנציאלס):
+```bash
+docker run -p 5001:5001 YOUR_DOCKERHUB_REPO/your-image:latest
+```
+
+- Real Mode עם IAM Role (על EC2 עם תפקיד):
+```bash
+docker run -p 5001:5001 YOUR_DOCKERHUB_REPO/your-image:latest
+```
+
+- Real Mode עם מפתחות (בדיקה מקומית):
+```bash
+docker run -p 5001:5001 \
+  -e AWS_ACCESS_KEY_ID=YOUR_KEY \
+  -e AWS_SECRET_ACCESS_KEY=YOUR_SECRET \
+  -e AWS_DEFAULT_REGION=us-east-1 \
+  YOUR_DOCKERHUB_REPO/your-image:latest
+```
 
 ## פריסה ל-EC2
 1. התחברות: `ssh ec2-user@<EC2_PUBLIC_IP>`.

@@ -12,6 +12,7 @@ A small Flask app that lists AWS resources (EC2, VPCs, Load Balancers, AMIs) usi
 - [Project Files](#project-files)
 - [Configuration](#configuration)
 - [Install & Run](#install--run)
+- [Prebuilt Image (Docker Hub)](#prebuilt-image-docker-hub)
 - [EC2 Deployment](#ec2-deployment)
 - [Architecture & Diagrams](#architecture--diagrams)
 - [Docker Build (Multi-Stage)](#docker-build-multi-stage)
@@ -84,6 +85,37 @@ docker run -p 5001:5001 -e SHOW_BUG=1 aws-app
 Note: On Windows PowerShell use `$Env:VAR` to pass environment variables (e.g. `$Env:AWS_ACCESS_KEY_ID`).
 
 Verify: open `http://localhost:5001/` or `http://<EC2_PUBLIC_IP>:5001/`. In Demo Mode a yellow banner appears at the top.
+
+## Prebuilt Image (Docker Hub)
+
+If you prefer to use a ready-made image from Docker Hub, pull and run it directly.
+
+Pull latest:
+
+```bash
+docker pull formy5000/resources_viewer:latest
+```
+
+Run examples:
+
+- Demo Mode (no credentials):
+```bash
+docker run -p 5001:5001 formy5000/resources_viewer:latest
+```
+
+- Real Mode with EC2 IAM Role (on an EC2 instance with a role):
+```bash
+docker run -p 5001:5001 formy5000/resources_viewer:latest
+```
+
+- Real Mode with keys (local testing):
+```bash
+docker run -p 5001:5001 \
+  -e AWS_ACCESS_KEY_ID=YOUR_KEY \
+  -e AWS_SECRET_ACCESS_KEY=YOUR_SECRET \
+  -e AWS_DEFAULT_REGION=us-east-1 \
+  YOUR_DOCKERHUB_REPO/your-image:latest
+```
 
 ## EC2 Deployment
 1. SSH: `ssh ec2-user@<EC2_PUBLIC_IP>`.
