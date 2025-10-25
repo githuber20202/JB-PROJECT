@@ -168,7 +168,7 @@ def home():
             Note: running in demo mode (no AWS credentials detected). Showing sample data.
         </div>
         {% endif %}
-        <h1>Running EC2 Instances - JB Student | Alexander-Y</h1>
+        <h1>Running EC2 Instances - JB Student | Alexander Y</h1>
         <table border='1'>
             <tr><th>ID</th><th>State</th><th>Type</th><th>Public IP</th></tr>
             {% for instance in instance_data %}
