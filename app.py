@@ -241,7 +241,8 @@ def home():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>AWS Resources Viewer</title>
-        <meta http-equiv="refresh" content="5">
+        <!-- Auto-refresh disabled to reduce server load -->
+        <!-- <meta http-equiv="refresh" content="5"> -->
         <style>
             * {
                 margin: 0;
@@ -469,7 +470,7 @@ def home():
     <body>
         <div class="container">
             <div class="header">
-                <h1>🚀 AWS Resources Viewer</h1>
+                <h1>AWS Resources Viewer</h1>
                 <p class="subtitle">Real-time Kubernetes Auto-Scaling with KEDA</p>
                 <div class="tech-logos">
                     <div class="tech-logo">
@@ -527,8 +528,7 @@ def home():
                     </div>
                     {% endif %}
                     <div class="refresh-notice">
-                        <span class="live-indicator"></span>
-                        Page auto-refreshes every 5 seconds to show live scaling
+                        💡 Refresh the page (F5) to see updated POD count
                     </div>
                 </div>
                 
@@ -640,4 +640,4 @@ def home():
 if __name__ == "__main__":
     # הפעלת שרת Flask המובנה (מתאים לדמו/פיתוח).
     # בייצור נהוג להשתמש ב‑gunicorn/uwsgi מאחורי Reverse Proxy.
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=False)
