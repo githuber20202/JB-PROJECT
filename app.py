@@ -16,15 +16,23 @@ Demo Mode אוטומטי:
 """
 
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError, EndpointConnectionError
 from botocore.config import Config
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, send_from_directory
+from kubernetes import client, config as k8s_config
+from kubernetes.client.rest import ApiException
 
 
 app = Flask(__name__)
+
+
+@app.route('/background.png')
+def background_image():
+    """Serve the background image."""
+    return send_from_directory('.', 'background.png')
 
 
 # קריאת קרדנציאלס והאזור מהסביבה (עם ברירות מחדל)
@@ -73,6 +81,70 @@ def _safe_call(fn, fallback: Any):
         return {"__error__": str(e)} if isinstance(fallback, dict) else fallback
 
 
+def get_kubernetes_info() -> Dict[str, Any]:
+    """מקבל מידע על PODs מ-Kubernetes cluster.
+    
+    Returns:
+        Dict עם:
+        - pod_count: מספר PODs פעילים
+        - current_pod: שם ה-POD הנוכחי
+        - error: הודעת שגיאה אם יש
+    """
+    try:
+        # נסה לטעון את ה-config מתוך הקלאסטר (in-cluster config)
+        k8s_config.load_incluster_config()
+    except k8s_config.ConfigException:
+        # אם לא רץ בתוך קלאסטר, נסה config מקומי
+        try:
+            k8s_config.load_kube_config()
+        except k8s_config.ConfigException:
+            return {
+                "pod_count": 0,
+                "current_pod": "N/A",
+                "error": "Not running in Kubernetes cluster"
+            }
+    
+    try:
+        v1 = client.CoreV1Api()
+        
+        # קבל את שם ה-POD הנוכחי ממשתנה סביבה
+        current_pod_name = os.getenv("HOSTNAME", "unknown")
+        
+        # קבל namespace (ברירת מחדל: default)
+        namespace = os.getenv("POD_NAMESPACE", "default")
+        
+        # ספור PODs פעילים עם אותו label
+        # נניח שה-label הוא app=aws-resources-viewer
+        label_selector = "app.kubernetes.io/name=aws-resources-viewer"
+        pods = v1.list_namespaced_pod(
+            namespace=namespace,
+            label_selector=label_selector
+        )
+        
+        # ספור רק PODs במצב Running
+        running_pods = [p for p in pods.items if p.status.phase == "Running"]
+        
+        return {
+            "pod_count": len(running_pods),
+            "current_pod": current_pod_name,
+            "namespace": namespace,
+            "error": None
+        }
+        
+    except ApiException as e:
+        return {
+            "pod_count": 0,
+            "current_pod": os.getenv("HOSTNAME", "N/A"),
+            "error": f"Kubernetes API error: {e.status}"
+        }
+    except Exception as e:
+        return {
+            "pod_count": 0,
+            "current_pod": os.getenv("HOSTNAME", "N/A"),
+            "error": f"Error: {str(e)}"
+        }
+
+
 @app.route("/")
 def home():
     """דף הבית: איסוף נתונים מהשירותים ורנדרינג של הטבלאות.
@@ -87,6 +159,9 @@ def home():
         # הערה: הקוד למטה נועד רק לייצר את השגיאה עבור התרגיל
         vpc_data = [{"VPC ID": vpc["VpcId"], "CIDR": vpc["CidrBlock"]} for vpc in vpcs["Vpcs"]]  # noqa: F821
         return str(vpc_data)  # לא יגיע לכאן — NameError ייזרק קודם
+    # קבל מידע על Kubernetes PODs
+    k8s_info = get_kubernetes_info()
+    
     session = _boto3_session()
     demo_mode = not _has_credentials(session)
 
@@ -158,47 +233,395 @@ def home():
             lb_data = [{"LB Name": "alb-demo", "DNS Name": "alb-demo-123.elb.amazonaws.com"}]
             ami_data = [{"AMI ID": "ami-0demo123", "Name": "demo-ami"}]
 
-    # רנדרינג: תבנית HTML פשוטה שמציגה את הנתונים בטבלאות
+    # רנדרינג: תבנית HTML מעוצבת עם לוגואים
     html_template = """
-    <html>
-    <head><title>AWS Resources</title></head>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>AWS Resources Viewer</title>
+        <meta http-equiv="refresh" content="5">
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-image: url('/background.png');
+                background-size: cover;
+                background-position: center;
+                background-attachment: fixed;
+                background-repeat: no-repeat;
+                padding: 20px;
+                min-height: 100vh;
+                position: relative;
+            }
+            
+            body::before {
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.3);
+                z-index: -1;
+            }
+            
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 15px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                overflow: hidden;
+            }
+            
+            .header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 30px;
+                text-align: center;
+            }
+            
+            .header h1 {
+                font-size: 2.5em;
+                margin-bottom: 10px;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            }
+            
+            .header .subtitle {
+                font-size: 1.2em;
+                opacity: 0.9;
+            }
+            
+            .tech-logos {
+                display: flex;
+                justify-content: center;
+                gap: 30px;
+                margin-top: 20px;
+                flex-wrap: wrap;
+            }
+            
+            .tech-logo {
+                background: white;
+                padding: 10px 20px;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                transition: transform 0.3s;
+            }
+            
+            .tech-logo:hover {
+                transform: translateY(-5px);
+            }
+            
+            .tech-logo img {
+                height: 30px;
+            }
+            
+            .tech-logo span {
+                font-weight: bold;
+                color: #333;
+            }
+            
+            .content {
+                padding: 30px;
+            }
+            
+            .demo-notice {
+                padding: 15px;
+                margin-bottom: 20px;
+                border: 2px solid #ffa726;
+                background: #fff3e0;
+                border-radius: 10px;
+                text-align: center;
+                font-weight: bold;
+                color: #e65100;
+            }
+            
+            .keda-info {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 25px;
+                margin-bottom: 30px;
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            }
+            
+            .keda-info h2 {
+                font-size: 2em;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            .keda-stats {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-top: 20px;
+            }
+            
+            .stat-card {
+                background: rgba(255, 255, 255, 0.2);
+                padding: 20px;
+                border-radius: 10px;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+            }
+            
+            .stat-label {
+                font-size: 0.9em;
+                opacity: 0.9;
+                margin-bottom: 5px;
+            }
+            
+            .stat-value {
+                font-size: 2em;
+                font-weight: bold;
+            }
+            
+            .refresh-notice {
+                text-align: center;
+                margin-top: 15px;
+                font-size: 0.9em;
+                opacity: 0.8;
+            }
+            
+            .section {
+                margin-bottom: 40px;
+            }
+            
+            .section h2 {
+                color: #667eea;
+                font-size: 1.8em;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 3px solid #667eea;
+            }
+            
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                background: white;
+                border-radius: 10px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            
+            th {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 15px;
+                text-align: left;
+                font-weight: 600;
+                text-transform: uppercase;
+                font-size: 0.9em;
+                letter-spacing: 1px;
+            }
+            
+            td {
+                padding: 15px;
+                border-bottom: 1px solid #f0f0f0;
+                color: #333;
+            }
+            
+            tr:hover {
+                background: #f8f9ff;
+            }
+            
+            tr:last-child td {
+                border-bottom: none;
+            }
+            
+            .footer {
+                background: #f5f5f5;
+                padding: 20px;
+                text-align: center;
+                color: #666;
+                font-size: 0.9em;
+            }
+            
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+            
+            .live-indicator {
+                display: inline-block;
+                width: 10px;
+                height: 10px;
+                background: #4CAF50;
+                border-radius: 50%;
+                margin-right: 5px;
+                animation: pulse 2s infinite;
+            }
+        </style>
+    </head>
     <body>
-        {% if demo_mode %}
-        <div style='padding:10px; margin-bottom:12px; border:1px solid #ccc; background:#ffffe0;'>
-            Note: running in demo mode (no AWS credentials detected). Showing sample data.
+        <div class="container">
+            <div class="header">
+                <h1>🚀 AWS Resources Viewer</h1>
+                <p class="subtitle">Real-time Kubernetes Auto-Scaling with KEDA</p>
+                <div class="tech-logos">
+                    <div class="tech-logo">
+                        <span>☸️</span>
+                        <span>Kubernetes</span>
+                    </div>
+                    <div class="tech-logo">
+                        <span>📊</span>
+                        <span>KEDA</span>
+                    </div>
+                    <div class="tech-logo">
+                        <span>☁️</span>
+                        <span>AWS</span>
+                    </div>
+                    <div class="tech-logo">
+                        <span>🐍</span>
+                        <span>Flask</span>
+                    </div>
+                    <div class="tech-logo">
+                        <span>🔄</span>
+                        <span>ArgoCD</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="content">
+                {% if demo_mode %}
+                <div class="demo-notice">
+                    ⚠️ Running in demo mode (no AWS credentials detected). Showing sample data.
+                </div>
+                {% endif %}
+                
+                <div class="keda-info">
+                    <h2>
+                        <span class="live-indicator"></span>
+                        KEDA Auto-Scaling Status
+                    </h2>
+                    <div class="keda-stats">
+                        <div class="stat-card">
+                            <div class="stat-label">Active Pods</div>
+                            <div class="stat-value">{{ k8s_info.pod_count }}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Current Pod</div>
+                            <div class="stat-value" style="font-size: 1.2em;">{{ k8s_info.current_pod }}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Namespace</div>
+                            <div class="stat-value" style="font-size: 1.5em;">{{ k8s_info.get('namespace', 'default') }}</div>
+                        </div>
+                    </div>
+                    {% if k8s_info.error %}
+                    <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.2); border-radius: 5px;">
+                        <strong>⚠️ Note:</strong> {{ k8s_info.error }}
+                    </div>
+                    {% endif %}
+                    <div class="refresh-notice">
+                        <span class="live-indicator"></span>
+                        Page auto-refreshes every 5 seconds to show live scaling
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>💻 Running EC2 Instances</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Instance ID</th>
+                                <th>State</th>
+                                <th>Type</th>
+                                <th>Public IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for instance in instance_data %}
+                            <tr>
+                                <td>{{ instance['ID'] }}</td>
+                                <td>{{ instance['State'] }}</td>
+                                <td>{{ instance['Type'] }}</td>
+                                <td>{{ instance['Public IP'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="section">
+                    <h2>🌐 Virtual Private Clouds (VPCs)</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>VPC ID</th>
+                                <th>CIDR Block</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for vpc in vpc_data %}
+                            <tr>
+                                <td>{{ vpc['VPC ID'] }}</td>
+                                <td>{{ vpc['CIDR'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="section">
+                    <h2>⚖️ Load Balancers</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Load Balancer Name</th>
+                                <th>DNS Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lb in lb_data %}
+                            <tr>
+                                <td>{{ lb['LB Name'] }}</td>
+                                <td>{{ lb['DNS Name'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="section">
+                    <h2>📀 Available AMIs</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>AMI ID</th>
+                                <th>Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ami in ami_data %}
+                            <tr>
+                                <td>{{ ami['AMI ID'] }}</td>
+                                <td>{{ ami['Name'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p><strong>JB Student Project</strong> | Powered by Kubernetes, KEDA, AWS, Flask & ArgoCD</p>
+                <p style="margin-top: 5px;">Built with ❤️ for demonstrating auto-scaling capabilities</p>
+            </div>
         </div>
-        {% endif %}
-        <h1>Running EC2 Instances - JB Student | Alex TESTS - Y!</h1>
-        <table border='1'>
-            <tr><th>ID</th><th>State</th><th>Type</th><th>Public IP</th></tr>
-            {% for instance in instance_data %}
-            <tr><td>{{ instance['ID'] }}</td><td>{{ instance['State'] }}</td><td>{{ instance['Type'] }}</td><td>{{ instance['Public IP'] }}</td></tr>
-            {% endfor %}
-        </table>
-
-        <h1>VPCs</h1>
-        <table border='1'>
-            <tr><th>VPC ID</th><th>CIDR</th></tr>
-            {% for vpc in vpc_data %}
-            <tr><td>{{ vpc['VPC ID'] }}</td><td>{{ vpc['CIDR'] }}</td></tr>
-            {% endfor %}
-        </table>
-
-        <h1>Load Balancers</h1>
-        <table border='1'>
-            <tr><th>LB Name</th><th>DNS Name</th></tr>
-            {% for lb in lb_data %}
-            <tr><td>{{ lb['LB Name'] }}</td><td>{{ lb['DNS Name'] }}</td></tr>
-            {% endfor %}
-        </table>
-
-        <h1>Available AMIs</h1>
-        <table border='1'>
-            <tr><th>AMI ID</th><th>Name</th></tr>
-            {% for ami in ami_data %}
-            <tr><td>{{ ami['AMI ID'] }}</td><td>{{ ami['Name'] }}</td></tr>
-            {% endfor %}
-        </table>
     </body>
     </html>
     """
@@ -210,6 +633,7 @@ def home():
         lb_data=lb_data,
         ami_data=ami_data,
         demo_mode=demo_mode,
+        k8s_info=k8s_info,
     )
 
 
