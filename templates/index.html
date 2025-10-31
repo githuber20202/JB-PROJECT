@@ -7,6 +7,12 @@
     <!-- Auto-refresh disabled to reduce server load -->
     <!-- <meta http-equiv="refresh" content="5"> -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Inline critical CSS for faster initial render */
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -15,23 +21,23 @@
             <p class="subtitle">Real-time Kubernetes Auto-Scaling with HPA</p>
             <div class="tech-logos">
                 <div class="tech-logo">
-                    <span>☸️</span>
+                    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" alt="Kubernetes">
                     <span>Kubernetes</span>
                 </div>
                 <div class="tech-logo">
-                    <span>📊</span>
-                    <span>HPA</span>
+                    <span style="font-size: 24px; font-weight: bold; color: #667eea;">HPA</span>
+                    <span>Auto-Scaling</span>
                 </div>
                 <div class="tech-logo">
-                    <span>☁️</span>
+                    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original-wordmark.svg" alt="AWS">
                     <span>AWS</span>
                 </div>
                 <div class="tech-logo">
-                    <span>🐍</span>
+                    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flask/flask-original.svg" alt="Flask">
                     <span>Flask</span>
                 </div>
                 <div class="tech-logo">
-                    <span>🔄</span>
+                    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/argocd/argocd-original.svg" alt="ArgoCD">
                     <span>ArgoCD</span>
                 </div>
             </div>
