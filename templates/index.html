@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Resources Viewer</title>
+    <!-- Auto-refresh disabled to reduce server load -->
+    <!-- <meta http-equiv="refresh" content="5"> -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 AWS Resources Viewer</h1>
+            <p class="subtitle">Real-time Kubernetes Auto-Scaling with HPA</p>
+            <div class="tech-logos">
+                <div class="tech-logo">
+                    <span>☸️</span>
+                    <span>Kubernetes</span>
+                </div>
+                <div class="tech-logo">
+                    <span>📊</span>
+                    <span>HPA</span>
+                </div>
+                <div class="tech-logo">
+                    <span>☁️</span>
+                    <span>AWS</span>
+                </div>
+                <div class="tech-logo">
+                    <span>🐍</span>
+                    <span>Flask</span>
+                </div>
+                <div class="tech-logo">
+                    <span>🔄</span>
+                    <span>ArgoCD</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content">
+            {% if demo_mode %}
+            <div class="demo-notice">
+                ⚠️ Running in demo mode (no AWS credentials detected). Showing sample data.
+            </div>
+            {% endif %}
+            
+            <div class="keda-info">
+                <h2>
+                    <span class="live-indicator"></span>
+                    Auto-Scaling Status
+                </h2>
+                <div class="keda-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Active Pods</div>
+                        <div class="stat-value">{{ k8s_info.pod_count }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Current Pod</div>
+                        <div class="stat-value" style="font-size: 1.2em;">{{ k8s_info.current_pod }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Namespace</div>
+                        <div class="stat-value" style="font-size: 1.5em;">{{ k8s_info.get('namespace', 'default') }}</div>
+                    </div>
+                </div>
+                {% if k8s_info.error %}
+                <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.2); border-radius: 5px;">
+                    <strong>⚠️ Note:</strong> {{ k8s_info.error }}
+                </div>
+                {% endif %}
+                <div class="refresh-notice">
+                    💡 Refresh the page (F5) to see updated POD count
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>💻 Running EC2 Instances</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Instance ID</th>
+                            <th>State</th>
+                            <th>Type</th>
+                            <th>Public IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for instance in instance_data %}
+                        <tr>
+                            <td>{{ instance['ID'] }}</td>
+                            <td>{{ instance['State'] }}</td>
+                            <td>{{ instance['Type'] }}</td>
+                            <td>{{ instance['Public IP'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>🌐 Virtual Private Clouds (VPCs)</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>VPC ID</th>
+                            <th>CIDR Block</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vpc in vpc_data %}
+                        <tr>
+                            <td>{{ vpc['VPC ID'] }}</td>
+                            <td>{{ vpc['CIDR'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>⚖️ Load Balancers</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Load Balancer Name</th>
+                            <th>DNS Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lb in lb_data %}
+                        <tr>
+                            <td>{{ lb['LB Name'] }}</td>
+                            <td>{{ lb['DNS Name'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>📀 Available AMIs</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>AMI ID</th>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ami in ami_data %}
+                        <tr>
+                            <td>{{ ami['AMI ID'] }}</td>
+                            <td>{{ ami['Name'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>JB Student Project</strong> | Powered by Kubernetes, HPA, AWS, Flask & ArgoCD</p>
+            <p style="margin-top: 5px;">Built with ❤️ for demonstrating auto-scaling capabilities</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -57,6 +57,8 @@ RUN pip install --no-cache-dir /wheels/*
 
 # העתקת קוד האפליקציה
 COPY app.py ./
+COPY templates ./templates
+COPY static ./static
 
 # תיעוד הפורט שאותו נחשוף מהקונטיינר
 EXPOSE 5001
