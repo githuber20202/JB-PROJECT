@@ -63,7 +63,7 @@ def _safe_call(fn, fallback: Any):
 
 
 def get_kubernetes_info() -> Dict[str, Any]:
-    """מקבל מידע על PODs מ-Kubernetes cluster."""
+    """מקבל מידע על PODs, HPA, Service ו-Resources מ-Kubernetes cluster."""
     try:
         k8s_config.load_incluster_config()
     except k8s_config.ConfigException:
@@ -73,34 +73,100 @@ def get_kubernetes_info() -> Dict[str, Any]:
             return {
                 "pod_count": 0,
                 "current_pod": "N/A",
-                "error": "Not running in Kubernetes cluster"
+                "error": "Not running in Kubernetes cluster",
+                "hpa": None,
+                "service": None,
+                "resources": None
             }
     
     try:
         v1 = client.CoreV1Api()
+        autoscaling_v1 = client.AutoscalingV1Api()
         current_pod_name = os.getenv("HOSTNAME", "unknown")
         namespace = os.getenv("POD_NAMESPACE", "default")
         label_selector = "app.kubernetes.io/name=aws-resources-viewer"
+        
+        # Get Pods info
         pods = v1.list_namespaced_pod(namespace=namespace, label_selector=label_selector)
         running_pods = [p for p in pods.items if p.status.phase == "Running"]
+        
+        # Get HPA info
+        hpa_info = None
+        try:
+            hpa = autoscaling_v1.read_namespaced_horizontal_pod_autoscaler(
+                name="aws-resources-viewer-hpa",
+                namespace=namespace
+            )
+            hpa_info = {
+                "enabled": True,
+                "min_replicas": hpa.spec.min_replicas,
+                "max_replicas": hpa.spec.max_replicas,
+                "current_replicas": hpa.status.current_replicas,
+                "desired_replicas": hpa.status.desired_replicas,
+                "target_cpu": hpa.spec.target_cpu_utilization_percentage
+            }
+        except:
+            hpa_info = {"enabled": False}
+        
+        # Get Service info
+        service_info = None
+        try:
+            service = v1.read_namespaced_service(
+                name="aws-resources-viewer",
+                namespace=namespace
+            )
+            service_info = {
+                "type": service.spec.type,
+                "port": service.spec.ports[0].port if service.spec.ports else None,
+                "node_port": service.spec.ports[0].node_port if service.spec.type == "NodePort" and service.spec.ports else None
+            }
+        except:
+            service_info = None
+        
+        # Get Resource info from first running pod
+        resource_info = None
+        if running_pods:
+            pod = running_pods[0]
+            if pod.spec.containers:
+                container = pod.spec.containers[0]
+                if container.resources:
+                    resource_info = {
+                        "limits": {
+                            "cpu": container.resources.limits.get("cpu") if container.resources.limits else None,
+                            "memory": container.resources.limits.get("memory") if container.resources.limits else None
+                        },
+                        "requests": {
+                            "cpu": container.resources.requests.get("cpu") if container.resources.requests else None,
+                            "memory": container.resources.requests.get("memory") if container.resources.requests else None
+                        }
+                    }
         
         return {
             "pod_count": len(running_pods),
             "current_pod": current_pod_name,
             "namespace": namespace,
-            "error": None
+            "error": None,
+            "hpa": hpa_info,
+            "service": service_info,
+            "resources": resource_info
         }
     except ApiException as e:
         return {
             "pod_count": 0,
             "current_pod": os.getenv("HOSTNAME", "N/A"),
-            "error": f"Kubernetes API error: {e.status}"
+            "error": f"Kubernetes API error: {e.status}",
+            "hpa": None,
+            "service": None,
+            "resources": None
         }
     except Exception as e:
         return {
             "pod_count": 0,
             "current_pod": os.getenv("HOSTNAME", "N/A"),
-            "error": f"Error: {str(e)}"
+            "error": f"Error: {str(e)}",
+            "hpa": None,
+            "service": None,
+            "resources": None
         }
 
 

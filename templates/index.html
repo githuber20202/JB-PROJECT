@@ -79,6 +79,85 @@
                 </div>
             </div>
             
+            {% if k8s_info.hpa and k8s_info.hpa.enabled %}
+            <div class="section">
+                <h2>📊 HPA (Horizontal Pod Autoscaler)</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Min Replicas</th>
+                            <th>Max Replicas</th>
+                            <th>Current Replicas</th>
+                            <th>Desired Replicas</th>
+                            <th>Target CPU %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ k8s_info.hpa.min_replicas }}</td>
+                            <td>{{ k8s_info.hpa.max_replicas }}</td>
+                            <td>{{ k8s_info.hpa.current_replicas }}</td>
+                            <td>{{ k8s_info.hpa.desired_replicas }}</td>
+                            <td>{{ k8s_info.hpa.target_cpu }}%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            
+            {% if k8s_info.service %}
+            <div class="section">
+                <h2>🌐 Kubernetes Service</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Service Type</th>
+                            <th>Port</th>
+                            {% if k8s_info.service.node_port %}
+                            <th>NodePort</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ k8s_info.service.type }}</td>
+                            <td>{{ k8s_info.service.port }}</td>
+                            {% if k8s_info.service.node_port %}
+                            <td>{{ k8s_info.service.node_port }}</td>
+                            {% endif %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            
+            {% if k8s_info.resources %}
+            <div class="section">
+                <h2>💾 Pod Resources</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Resource</th>
+                            <th>Limit</th>
+                            <th>Request</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>CPU</td>
+                            <td>{{ k8s_info.resources.limits.cpu or 'N/A' }}</td>
+                            <td>{{ k8s_info.resources.requests.cpu or 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td>Memory</td>
+                            <td>{{ k8s_info.resources.limits.memory or 'N/A' }}</td>
+                            <td>{{ k8s_info.resources.requests.memory or 'N/A' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            
             <div class="section">
                 <h2>💻 Running EC2 Instances</h2>
                 <table>
